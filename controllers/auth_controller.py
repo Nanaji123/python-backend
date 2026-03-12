@@ -1,4 +1,5 @@
-from fastapi import HTTPException, Request, Response
+from fastapi import HTTPException, Request, Response,UploadFile, File
+from models.user_model import UserChangePassword
 from utils.database import db
 from utils.hash import hash_password
 from utils.validation import validate_username, validate_password
@@ -12,6 +13,9 @@ import secrets
 import random
 import os
 import math
+from config.cloudinary import cloudinary_client
+import cloudinary.uploader
+
 
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
@@ -433,3 +437,96 @@ async def change_password_controller(request: Request, data: UserChangePassword)
         "success": True,
         "message": "Password updated successfully. Other devices logged out."
     }
+
+
+async def me_controller(request: Request):
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = decoded_token.get("id")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "success": True,
+        "user": {
+            "id": str(user["_id"]),
+            "username": user["username"],
+            "email": user["email"],
+            "profile_picture": user.get("profile_picture") or "https://api.dicebear.com/7.x/avataaars/svg?seed=" + user["username"],
+            "createdAt": user.get("createdAt") or datetime.utcnow(),
+            "updatedAt": user.get("updatedAt") or datetime.utcnow()
+        }
+    }
+
+
+async def change_username_controller(request: Request, new_username: str):
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = decoded_token.get("id")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    username_change_count = user.get("usernamechangeCount", 5)
+    if username_change_count <= 0:
+        raise HTTPException(status_code=400, detail="Username change limit reached")
+    if not validate_username(new_username):
+        raise HTTPException(status_code=400, detail="Invalid username")
+    if await db.users.find_one({"username": new_username}):
+        raise HTTPException(status_code=400, detail="Username already exists")
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {
+            "username": new_username,
+            "usernamechangeCount": username_change_count - 1,
+            "updatedAt": datetime.utcnow()
+        }}
+    )
+    return {
+        "success": True,
+        "message": "Username changed successfully"
+    }
+
+async def update_profile_picture_controller(request: Request, image: UploadFile = File(...)):
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = decoded_token.get("id")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.get("profile_picture") and "dicebear.com" not in user["profile_picture"]:
+        try:
+            public_id = user["profile_picture"].split("/")[-1].split(".")[0]
+            cloudinary.uploader.destroy(f"profile_pictures/{public_id}")
+        except Exception as e:
+            print("Cloudinary delete error:", e)
+    result = cloudinary.uploader.upload(image.file, folder="profile_pictures")
+    image_url = result["secure_url"]
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"profile_picture": image_url, "updatedAt": datetime.utcnow()}}
+    )
+    return {
+        "success": True,
+        "message": "Profile picture updated successfully",
+        "profile_picture": image_url
+    }
+
+ 

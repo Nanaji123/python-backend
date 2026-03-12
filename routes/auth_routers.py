@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, Response
-from controllers.auth_controller import register_controller, login_controller, verify_controller, logout_controller, forget_password_controller, reset_password_controller, change_password_controller
-from models.user_model import UserRegister, UserLogin, UserChangePassword
-from fastapi import Body
+from controllers.auth_controller import register_controller, login_controller, verify_controller, logout_controller, forget_password_controller, reset_password_controller, change_password_controller, me_controller, change_username_controller, update_profile_picture_controller
+from models.user_model import UserRegister, UserLogin, UserChangePassword, UserChangeUsername
+from fastapi import Body, UploadFile, File
+
 
 
 router = APIRouter(prefix="/auth")
@@ -39,3 +40,17 @@ async def reset_password(user_id: str, token: str, new_password: str = Body(...,
 async def change_password(data: UserChangePassword, request: Request):
     return await change_password_controller(request, data)
 
+
+
+
+@router.get("/me")
+async def me(request: Request):
+    return await me_controller(request)
+
+@router.post("/change-username")
+async def change_username(data: UserChangeUsername, request: Request):
+    return await change_username_controller(request, data.new_username)
+
+@router.post("/update-profile-picture")
+async def update_profile_picture(request: Request, image: UploadFile = File(...)):
+    return await update_profile_picture_controller(request, image)

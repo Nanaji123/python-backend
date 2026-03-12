@@ -19,6 +19,14 @@ class UserChangePassword(BaseModel):
     new_password: str
 
 
+class UserChangeUsername(BaseModel):
+    new_username: str
+
+
+class UserUpdateProfilePicture(BaseModel):
+    profile_picture: str
+
+
 class User(BaseModel):
 
     username: str
