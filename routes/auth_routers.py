@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Response
-from controllers.auth_controller import register_controller, login_controller, verify_controller, logout_controller, forget_password_controller, reset_password_controller, change_password_controller, me_controller, change_username_controller, update_profile_picture_controller
+from controllers.auth_controller import register_controller, login_controller, verify_controller, logout_controller, forget_password_controller, reset_password_controller, change_password_controller, me_controller, change_username_controller, update_profile_picture_controller,delete_user_controller
 from models.user_model import UserRegister, UserLogin, UserChangePassword, UserChangeUsername
 from fastapi import Body, UploadFile, File
 
@@ -40,6 +40,9 @@ async def reset_password(user_id: str, token: str, new_password: str = Body(...,
 async def change_password(data: UserChangePassword, request: Request):
     return await change_password_controller(request, data)
 
+@router.post("/delete-user")
+async def delete_user(request: Request):
+    return await delete_user_controller(request)
 
 
 

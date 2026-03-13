@@ -285,7 +285,7 @@ async def forget_password_controller(email: str):
             "expiresAt": datetime.utcnow() + timedelta(minutes=15)
         })
 
-        reset_link = f"http://localhost:8000/auth/reset-password/{user['_id']}/{reset_token_raw}"
+        reset_link = f"http://localhost:3000/reset-password/{str(user['_id'])}/{reset_token_raw}"
 
         await send_email(
             to=user["email"],
@@ -437,6 +437,19 @@ async def change_password_controller(request: Request, data: UserChangePassword)
         "success": True,
         "message": "Password updated successfully. Other devices logged out."
     }
+
+
+
+async def delete_user_controller(request: Request):
+    user_id = request.user.get("id")
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    return {
+        "success": True,
+        "message": "User deleted successfully"
+    }
+
+
+
 
 
 async def me_controller(request: Request):

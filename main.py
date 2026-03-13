@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.auth_routers import router as auth_router
 from routes.ai_chat_routers import router as ai_chat_router
 from routes.chat_routers import router as chat_router
+from routes.file_routers import router as file_router
+from routes.task_routers import router as task_router
 import socketio
 from sockets.socket import sio
 
@@ -35,6 +37,8 @@ socket_app = socketio.ASGIApp(
 app.include_router(auth_router)
 app.include_router(ai_chat_router)
 app.include_router(chat_router)
+app.include_router(file_router)
+app.include_router(task_router)
 
 @app.get("/")
 async def root():
