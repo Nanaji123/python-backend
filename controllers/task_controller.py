@@ -1,27 +1,10 @@
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 from utils.database import db
-from jose import jwt, JWTError
 from bson import ObjectId
 from datetime import datetime
-import os
 from models.task_model import TaskCreate, TaskUpdate
 
-SECRET_KEY = os.getenv("JWT_SECRET")
-ALGORITHM = "HS256"
-
-async def get_user_from_request(request: Request):
-    access_token = request.cookies.get("access_token")
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    try:
-        decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = decoded_token.get("id")
-        return user_id
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-async def add_task_controller(data: TaskCreate, request: Request):
-    user_id = await get_user_from_request(request)
+async def add_task_controller(data: TaskCreate, user_id: str):
     new_task = {
         "userId": user_id,
         "title": data.title,
@@ -40,8 +23,7 @@ async def add_task_controller(data: TaskCreate, request: Request):
         "taskId": str(result.inserted_id)
     }
 
-async def get_tasks_controller(request: Request):
-    user_id = await get_user_from_request(request)
+async def get_tasks_controller(user_id: str):
     tasks = []
     cursor = db.tasks.find({"userId": user_id}).sort("createdAt", -1)
     async for task in cursor:
@@ -61,8 +43,7 @@ async def get_tasks_controller(request: Request):
         "tasks": tasks
     }
 
-async def update_task_controller(data: TaskUpdate, request: Request):
-    user_id = await get_user_from_request(request)
+async def update_task_controller(data: TaskUpdate, user_id: str):
     task_id = data.id
     
     if not ObjectId.is_valid(task_id):
@@ -85,9 +66,7 @@ async def update_task_controller(data: TaskUpdate, request: Request):
         "message": "Task updated successfully"
     }
 
-async def delete_task_controller(task_id: str, request: Request):
-    user_id = await get_user_from_request(request)
-    
+async def delete_task_controller(task_id: str, user_id: str):
     if not ObjectId.is_valid(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
         
@@ -101,9 +80,7 @@ async def delete_task_controller(task_id: str, request: Request):
         "message": "Task deleted successfully"
     }
 
-async def mark_as_completed_controller(task_id: str, request: Request):
-    user_id = await get_user_from_request(request)
-    
+async def mark_as_completed_controller(task_id: str, user_id: str):
     if not ObjectId.is_valid(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
         

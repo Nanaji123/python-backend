@@ -1,15 +1,11 @@
 from fastapi import Request, UploadFile, File, Form, HTTPException
 from bson import ObjectId
-from jose import jwt, JWTError
 import json
 import os
 from datetime import datetime
 import cloudinary.uploader
 from utils.database import db
 from math import ceil
-
-SECRET_KEY = os.getenv("JWT_SECRET")
-ALGORITHM = "HS256"
 
 
 async def populate_chat_data(chat):
@@ -69,14 +65,9 @@ async def populate_chat_data(chat):
     return chat
 
 
-async def list_user_controller(request: Request, page: int = 1, limit: int = 20, search: str = ""):
+async def list_user_controller(user_id: str, page: int = 1, limit: int = 20, search: str = ""):
     try:
-        access_token = request.cookies.get("access_token")
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = decoded.get("id")
+        skip = (page - 1) * limit
         skip = (page - 1) * limit
 
         keyword = {}
@@ -119,22 +110,13 @@ async def list_user_controller(request: Request, page: int = 1, limit: int = 20,
 
     except HTTPException as e:
         raise e
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
     except Exception as e:
         print("Error fetching users:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def get_chats_controller(request: Request):
+async def get_chats_controller(logged_user_id: str):
 
     try:
-        access_token = request.cookies.get("access_token")
-
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
 
         # 1️⃣ Fetch chats where user is participant
         chats_cursor = db.chats.find({
@@ -201,15 +183,8 @@ async def get_chats_controller(request: Request):
         print("Error fetching chats:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def create_chat_controller(request: Request):
+async def create_chat_controller(request: Request, logged_user_id: str):
     try:
-        access_token = request.cookies.get("access_token")
-
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
 
         data = await request.json()
         user_id = data.get("userId") or data.get("user_id")
@@ -262,15 +237,8 @@ async def create_chat_controller(request: Request):
         print("Error creating chat:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def update_chat_controller(request: Request):
+async def update_chat_controller(request: Request, logged_user_id: str):
     try:
-        access_token = request.cookies.get("access_token")
-
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
 
         data = await request.json()
         chat_id = data.get("chat_id")
@@ -310,15 +278,8 @@ async def update_chat_controller(request: Request):
         print("Error updating chat:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def delete_chat_controller(request: Request):
+async def delete_chat_controller(request: Request, user_id: str):
     try:
-        access_token = request.cookies.get("access_token")
-
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        userid   = decoded.get("id")
 
         data = await request.json()
         chat_id = data.get("chat_id")
@@ -348,16 +309,8 @@ async def delete_chat_controller(request: Request):
         print("Error deleting chat:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def get_messages_controller(request: Request, chat_id: str, page: int = 1, limit: int = 30):
+async def get_messages_controller(chat_id: str, logged_user_id: str, page: int = 1, limit: int = 30):
     try:
-        # 1️⃣ Authenticate user from cookie
-        access_token = request.cookies.get("access_token")
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
-
         skip = (page - 1) * limit
 
         # 2️⃣ Fetch messages
@@ -408,7 +361,7 @@ async def get_messages_controller(request: Request, chat_id: str, page: int = 1,
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def create_group_chat_controller(
-    request: Request,
+    logged_user_id: str,
     users: str = Form(...),
     groupName: str = Form(...),
     groupDescription: str = Form(""),
@@ -416,15 +369,6 @@ async def create_group_chat_controller(
 ):
 
     try:
-
-        # 1️⃣ Decode JWT
-        access_token = request.cookies.get("access_token")
-
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
 
         # 2️⃣ Parse users
         users_list = json.loads(users)
@@ -490,15 +434,8 @@ async def create_group_chat_controller(
         print("Error creating group chat:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def get_chat_details_controller(request: Request, chat_id: str):
+async def get_chat_details_controller(chat_id: str, logged_user_id: str):
     try:
-        # 1️⃣ Authenticate user
-        access_token = request.cookies.get("access_token")
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
 
         # 2️⃣ Fetch chat
         chat = await db.chats.find_one({"_id": ObjectId(chat_id)})
@@ -558,16 +495,8 @@ async def get_chat_details_controller(request: Request, chat_id: str):
         print("Error fetching chat details:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def remove_user_from_group_controller(request: Request):
+async def remove_user_from_group_controller(request: Request, logged_user_id: str):
     try:
-
-        # 1️⃣ Authenticate user
-        access_token = request.cookies.get("access_token")
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-        decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        logged_user_id = decoded.get("id")
 
         data = await request.json()
         chat_id = data.get("chat_id")

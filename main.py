@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+import time
 from fastapi.middleware.cors import CORSMiddleware
 from routes.auth_routers import router as auth_router
 from routes.ai_chat_routers import router as ai_chat_router
@@ -26,6 +27,15 @@ app.add_middleware(
     allow_methods=["*"],   # or ["GET","POST","DELETE","OPTIONS"]
     allow_headers=["*"],   # or ["Content-Type","Authorization"]
 )
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    print(f"Request: {request.method} {request.url.path} - Process Time: {process_time:.4f}s")
+    return response
 
 # Socket.IO
 socket_app = socketio.ASGIApp(

@@ -1,27 +1,10 @@
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 from config.gemini import generate_gemini_response
 from utils.database import db
-from jose import jwt, JWTError
 from bson import ObjectId
 from datetime import datetime
-import os
 
-SECRET_KEY = os.getenv("JWT_SECRET")
-ALGORITHM = "HS256"
-
-async def get_user_from_request(request: Request):
-    access_token = request.cookies.get("access_token")
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    try:
-        decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = decoded_token.get("id")
-        return user_id
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-async def create_ai_chat_controller(request: Request):
-    user_id = await get_user_from_request(request)
+async def create_ai_chat_controller(user_id: str):
     new_chat = {
         "userId": user_id,
         "title": "New AI Chat",
@@ -35,8 +18,7 @@ async def create_ai_chat_controller(request: Request):
         "chatId": str(result.inserted_id)
     }
 
-async def get_ai_chats_controller(request: Request):
-    user_id = await get_user_from_request(request)
+async def get_ai_chats_controller(user_id: str):
     chats = []
     cursor = db.ai_chats.find({"userId": user_id}).sort("updatedAt", -1)
     async for chat in cursor:
@@ -50,8 +32,7 @@ async def get_ai_chats_controller(request: Request):
         "chats": chats
     }
 
-async def get_ai_chat_details_controller(chat_id: str, request: Request):
-    user_id = await get_user_from_request(request)
+async def get_ai_chat_details_controller(chat_id: str, user_id: str):
     if not ObjectId.is_valid(chat_id):
         raise HTTPException(status_code=400, detail="Invalid chat ID")
     
@@ -69,8 +50,7 @@ async def get_ai_chat_details_controller(chat_id: str, request: Request):
         }
     }
 
-async def gemini_chat_controller(data, request: Request):
-    user_id = await get_user_from_request(request)
+async def gemini_chat_controller(data, user_id: str):
     message_text = data.message
     chat_id = data.chatId
     persona = data.persona
@@ -130,8 +110,7 @@ async def gemini_chat_controller(data, request: Request):
         raise HTTPException(status_code=500, detail="AI response failed")
 
 
-async def delete_ai_chat_controller(chat_id: str, request: Request):
-    user_id = await get_user_from_request(request)
+async def delete_ai_chat_controller(chat_id: str, user_id: str):
     if not ObjectId.is_valid(chat_id):
         raise HTTPException(status_code=400, detail="Invalid chat ID")
     

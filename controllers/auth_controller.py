@@ -216,6 +216,7 @@ async def login_controller(data, request:Request, response:Response):
     })
     return {
         "success": True,
+        "token": access_token,
         "user": {
             "username": user["username"],
             "email": user["email"],
