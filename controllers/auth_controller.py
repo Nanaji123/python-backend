@@ -387,6 +387,10 @@ async def reset_password_controller(user_id: str, token: str, new_password: str)
 async def change_password_controller(request: Request, data: UserChangePassword):
     access_token = request.cookies.get("access_token")
     if not access_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header.split(" ")[1]
+    if not access_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
@@ -456,6 +460,10 @@ async def delete_user_controller(request: Request):
 async def me_controller(request: Request):
     access_token = request.cookies.get("access_token")
     if not access_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header.split(" ")[1]
+    if not access_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
@@ -483,6 +491,10 @@ async def me_controller(request: Request):
 
 async def change_username_controller(request: Request, new_username: str):
     access_token = request.cookies.get("access_token")
+    if not access_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header.split(" ")[1]
     if not access_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:
@@ -515,6 +527,10 @@ async def change_username_controller(request: Request, new_username: str):
 
 async def update_profile_picture_controller(request: Request, image: UploadFile = File(...)):
     access_token = request.cookies.get("access_token")
+    if not access_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header.split(" ")[1]
     if not access_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:

@@ -37,6 +37,9 @@ async def connect(sid, environ, auth):
                 if cookie.startswith("access_token="):
                     token = cookie.split("=")[1]
 
+        if not token and auth and "token" in auth:
+            token = auth["token"]
+
         if not token:
             raise Exception("No token provided")
 
